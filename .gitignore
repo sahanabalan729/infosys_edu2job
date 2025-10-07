@@ -12,7 +12,7 @@
 .env
 *.env
 
-# Ignore compiled files
+# Ignore compiled Python files
 *.pyc
 __pycache__/
 
@@ -59,24 +59,19 @@ backend/.venv/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# Model files
-ml-service/*.pkl
+# Ignore all model & data files in ml-service except tracked models folder
 ml-service/*.joblib
 ml-service/*.h5
-ml-service/models/
-ml-service/saved_models/
-
-# Datasets
-ml-service/*.csv
 ml-service/data/
 ml-service/datasets/
-
-# Cache
 ml-service/__pycache__/
 ml-service/.pytest_cache/
 
+# Keep models folder tracked for real predictions
+!ml-service/models/
+
 # ================================
-# Optional - VSCode or JetBrains settings
+# Optional - IDE settings
 # ================================
 .vscode/
 .idea/
