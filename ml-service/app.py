@@ -6,7 +6,6 @@ import numpy as np
 import pickle
 from flask_cors import CORS
 import json
-import traceback
 
 # ----------------------------
 # 1️⃣ Create Flask app
@@ -25,9 +24,9 @@ DB_PATH = os.path.join(DB_DIR, "users.db")
 # ----------------------------
 # 3️⃣ Load ML Model & Encoders
 # ----------------------------
-MODEL_PATH = "jobrole_model.pkl"
-LABEL_ENCODER_PATH = "label_encoder.pkl"
-FEATURE_ENCODERS_PATH = "feature_encoders.pkl"
+MODEL_PATH = os.path.join(BASE_DIR, "jobrole_model.pkl")
+LABEL_ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
+FEATURE_ENCODERS_PATH = os.path.join(BASE_DIR, "feature_encoders.pkl")
 
 if os.path.exists(MODEL_PATH) and os.path.exists(LABEL_ENCODER_PATH) and os.path.exists(FEATURE_ENCODERS_PATH):
     model = joblib.load(MODEL_PATH)
@@ -39,8 +38,7 @@ if os.path.exists(MODEL_PATH) and os.path.exists(LABEL_ENCODER_PATH) and os.path
     certs_encoder = feature_encoders.get("certs_encoder")
     print("🎯 Model & encoders loaded successfully!")
 else:
-    model, target_encoder, feature_encoders = None, None, None
-    label_encoders, skills_encoder, certs_encoder = {}, None, None
+    model, target_encoder, label_encoders, skills_encoder, certs_encoder = None, None, {}, None, None
     print("⚠️ Model or encoders not found. Prediction API will not work.")
 
 # ----------------------------
@@ -78,40 +76,34 @@ def generate_explanation(job_name, form):
 def predict():
     try:
         form = request.json
-        print("Received form:", form)
+        print("📥 Form received:", form)
 
-        # If model is missing, return dummy predictions
-        if model is None or target_encoder is None:
-            print("⚠️ Model or encoder not loaded, returning dummy predictions.")
-            dummy_predictions = [
-                {"job": "Software Developer", "confidence": 0.9, "explanation": "Sample role."},
-                {"job": "Data Analyst", "confidence": 0.85, "explanation": "Sample role."},
-                {"job": "Project Manager", "confidence": 0.8, "explanation": "Sample role."},
-            ]
-            return jsonify({"top_jobs": dummy_predictions})
+        if model is None:
+            return jsonify({"top_jobs": []})
 
         # ----------------------------
-        # Encode categorical features safely
+        # Encode categorical fields
         # ----------------------------
-        def safe_transform(encoder, value):
+        def safe_encode(encoder, val):
+            if encoder is None:
+                return 0
             try:
-                return encoder.transform([value])[0]
+                return encoder.transform([val])[0]
             except:
                 return 0
 
-        degree_val = safe_transform(label_encoders.get("Degree"), form.get("degree",""))
-        major_val  = safe_transform(label_encoders.get("Major"), form.get("major",""))
-        industry_val = safe_transform(label_encoders.get("IndustryPreference"), form.get("industry",""))
+        degree_val = safe_encode(label_encoders.get("Degree"), form.get("degree",""))
+        major_val = safe_encode(label_encoders.get("Major"), form.get("major",""))
+        industry_val = safe_encode(label_encoders.get("IndustryPreference"), form.get("industry",""))
 
         # ----------------------------
-        # Encode skills and certifications
+        # Encode skills & certifications
         # ----------------------------
         skills_list = form.get("skills", [])
         if skills_encoder:
             try:
                 skills_encoded = skills_encoder.transform([skills_list])
             except:
-                print("⚠️ Skills encoding failed, using zeros.")
                 skills_encoded = np.zeros((1, skills_encoder.transform([[]]).shape[1]))
         else:
             skills_encoded = np.zeros((1,5))
@@ -121,22 +113,21 @@ def predict():
             try:
                 certs_encoded = certs_encoder.transform([certs_list])
             except:
-                print("⚠️ Certs encoding failed, using zeros.")
                 certs_encoded = np.zeros((1, certs_encoder.transform([[]]).shape[1]))
         else:
             certs_encoded = np.zeros((1,5))
 
-        # ----------------------------
-        # Combine all features
-        # ----------------------------
         X_numeric = np.array([[degree_val, major_val, float(form.get("cgpa",0)), float(form.get("experience",0)), industry_val]])
         X = np.hstack([X_numeric, skills_encoded, certs_encoded])
-        print("Input X shape:", X.shape)
+
+        print("🧮 Encoded features X:", X)
 
         # ----------------------------
-        # Predict
+        # Predict probabilities
         # ----------------------------
         y_probs = model.predict_proba(X)[0]
+        print("📊 Predicted probabilities:", y_probs)
+
         top_idx = np.argsort(y_probs)[-3:][::-1]
 
         top_jobs = []
@@ -144,59 +135,55 @@ def predict():
             job_name = target_encoder.inverse_transform([model.classes_[idx]])[0]
             confidence = float(y_probs[idx])
             explanation = generate_explanation(job_name, form)
-            top_jobs.append({"job": job_name, "confidence": confidence, "explanation": explanation})
+            top_jobs.append({
+                "job": job_name,
+                "confidence": confidence,
+                "explanation": explanation
+            })
 
-        # Save top-1 role for DB
-        top1_role = top_jobs[0]["job"] if top_jobs else None
+        print("✅ Top jobs:", top_jobs)
 
-        # Save to DB safely
+        # ----------------------------
+        # Save top-1 role to DB
+        # ----------------------------
         user_id = form.get("user_id")
         if user_id:
-            try:
-                conn = sqlite3.connect(DB_PATH)
-                cur = conn.cursor()
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS predictions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id TEXT,
-                        cgpa TEXT,
-                        degree TEXT,
-                        major TEXT,
-                        skills TEXT,
-                        role TEXT,
-                        top_jobs TEXT,
-                        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                cur.execute("""
-                    INSERT INTO predictions (user_id, cgpa, degree, major, skills, role, top_jobs)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    user_id,
-                    form.get("cgpa",""),
-                    form.get("degree",""),
-                    form.get("major",""),
-                    ",".join(skills_list),
-                    top1_role,
-                    json.dumps(top_jobs)
-                ))
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print("⚠️ Failed to save prediction to DB:", e)
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute("""CREATE TABLE IF NOT EXISTS predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                cgpa TEXT,
+                degree TEXT,
+                major TEXT,
+                skills TEXT,
+                role TEXT,
+                top_jobs TEXT,
+                date TEXT DEFAULT CURRENT_TIMESTAMP
+            )""")
+            conn.commit()
+
+            top1_role = top_jobs[0]["job"] if top_jobs else None
+            cur.execute("""
+                INSERT INTO predictions (user_id, cgpa, degree, major, skills, role, top_jobs)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                form.get("cgpa",""),
+                form.get("degree",""),
+                form.get("major",""),
+                ",".join(skills_list),
+                top1_role,
+                json.dumps(top_jobs)
+            ))
+            conn.commit()
+            conn.close()
 
         return jsonify({"top_jobs": top_jobs})
 
     except Exception as e:
-        print("Prediction error:", e)
-        traceback.print_exc()
-        # Return a fallback prediction
-        return jsonify({
-            "top_jobs": [
-                {"job": "Software Developer", "confidence": 0.9, "explanation": "Sample fallback role."},
-                {"job": "Data Analyst", "confidence": 0.85, "explanation": "Sample fallback role."}
-            ]
-        })
+        print("❌ Prediction error:", e)
+        return jsonify({"top_jobs": []})
 
 # ----------------------------
 # 6️⃣ Run server

@@ -399,8 +399,8 @@ export default function Prediction() {
           </div>
         ) : (
           <div className="mt-8 flex flex-col items-center w-full max-w-md mx-auto">
-            <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              🎯 Top Job Suggestions
+            <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white-600 to- white-600 bg-clip-text ">
+              Top Job Suggestions
             </h2>
             {Array.isArray(result) &&
               result.map((job, index) => (
