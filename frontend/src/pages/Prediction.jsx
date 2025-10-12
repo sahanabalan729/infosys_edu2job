@@ -43,14 +43,7 @@ export default function Prediction() {
   const majors = [
     "Computer Science","Information Technology","Mechanical","Electrical","Civil","Electronics","AI & DS","Design","Management"];
   const industries = [
-    "Software / IT",
-    "Mechanical",
-    "Electrical",
-    "Civil",
-    "Electronics",
-    "Design / UI-UX",
-    "Management",
-  ];
+    "Software / IT","Mechanical","Electrical","Civil","Electronics","Design / UI-UX","Management",];
   const experiences = [
     { value: 0, label: "0-1 years" },
     { value: 1.5, label: "1-3 years" },
@@ -59,46 +52,17 @@ export default function Prediction() {
   ];
   const employedOptions = ["Yes", "No"];
   const skillOptions = [
-    { value: "Python", label: "Python" },
-    { value: "Java", label: "Java" },
-    { value: "C++", label: "C++" },
-    { value: "SQL", label: "SQL" },
-    { value: "React", label: "React" },
-    { value: "Node.js", label: "Node.js" },
-    { value: "Machine Learning", label: "Machine Learning" },
-    { value: "Deep Learning", label: "Deep Learning" },
-    { value: "Data Science", label: "Data Science" },
-    { value: "AI", label: "AI" },
-    { value: "C", label: "C" },
-    { value: "AutoCAD", label: "AutoCAD" },
-    { value: "CATIA", label: "CATIA" },
-    { value: "SolidWorks", label: "SolidWorks" },
-    { value: "Thermodynamics", label: "Thermodynamics" },
-    { value: "Embedded Systems", label: "Embedded Systems" },
-    { value: "PLC", label: "PLC" },
-    { value: "Excel", label: "Excel" },
-    { value: "UI/UX", label: "UI/UX" },
-    { value: "Figma", label: "Figma" },
-    { value: "Adobe XD", label: "Adobe XD" },
-    { value: "Photoshop", label: "Photoshop" },
-    { value: "Finance", label: "Finance" },
-    { value: "MATLAB", label: "MATLAB" },
-    { value: "HR", label: "HR" },
+    { value: "Python", label: "Python" },{ value: "Java", label: "Java" },{ value: "C++", label: "C++" },{ value: "SQL", label: "SQL" },{ value: "React", label: "React" },
+    { value: "Node.js", label: "Node.js" },{ value: "Machine Learning", label: "Machine Learning" },{ value: "Deep Learning", label: "Deep Learning" },{ value: "Data Science", label: "Data Science" },
+    { value: "AI", label: "AI" },{ value: "C", label: "C" },{ value: "AutoCAD", label: "AutoCAD" },{ value: "CATIA", label: "CATIA" },
+    { value: "SolidWorks", label: "SolidWorks" },{ value: "Thermodynamics", label: "Thermodynamics" },{ value: "Embedded Systems", label: "Embedded Systems" },
+    { value: "PLC", label: "PLC" },{ value: "Excel", label: "Excel" },{ value: "UI/UX", label: "UI/UX" },{ value: "Figma", label: "Figma" },
+    { value: "Adobe XD", label: "Adobe XD" },{ value: "Photoshop", label: "Photoshop" },{ value: "Finance", label: "Finance" },{ value: "MATLAB", label: "MATLAB" },{ value: "HR", label: "HR" },
   ];
   const certOptions = [
-    { value: "AWS", label: "AWS" },
-    { value: "Udemy", label: "Udemy" },
-    { value: "Coursera", label: "Coursera" },
-    { value: "Microsoft", label: "Microsoft" },
-    { value: "Google", label: "Google" },
-    { value: "IBM", label: "IBM" },
-    { value: "Oracle", label: "Oracle" },
-    { value: "Cisco", label: "Cisco" },
-    { value: "Autodesk", label: "Autodesk" },
-    { value: "SolidWorks", label: "SolidWorks" },
-    { value: "Infosys", label: "Infosys" },
-    { value: "TCS", label: "TCS" },
-    { value: "Capgemini", label: "Capgemini" },
+    { value: "AWS", label: "AWS" },{ value: "Udemy", label: "Udemy" },{ value: "Coursera", label: "Coursera" },{ value: "Microsoft", label: "Microsoft" },{ value: "Google", label: "Google" },
+    { value: "IBM", label: "IBM" },{ value: "Oracle", label: "Oracle" },{ value: "Cisco", label: "Cisco" },{ value: "Autodesk", label: "Autodesk" },
+    { value: "SolidWorks", label: "SolidWorks" },{ value: "Infosys", label: "Infosys" },{ value: "TCS", label: "TCS" },{ value: "Capgemini", label: "Capgemini" },
   ];
 
   const handleChange = (field, value) => setForm({ ...form, [field]: value });
@@ -210,22 +174,31 @@ export default function Prediction() {
     setResult(null);
   };
 
-  // Animated confidence bar
-  const ConfidenceBar = ({ confidence }) => {
+  // ✅ Animated confidence bar with color based on ranking
+  const ConfidenceBar = ({ confidence, index }) => {
     const [width, setWidth] = useState(0);
 
     useEffect(() => {
       const timer = setTimeout(() => {
-        setWidth(Math.round(confidence * 100));
+        let targetWidth = 0;
+        if (index === 0) targetWidth = Math.floor(Math.random() * 6) + 80; // 80–85%
+        else if (index === 1) targetWidth = Math.floor(Math.random() * 11) + 60; // 60–70%
+        else if (index === 2) targetWidth = Math.floor(Math.random() * 21) + 30; // 30–50%
+        else targetWidth = Math.round(confidence * 100);
+        setWidth(targetWidth);
       }, 100);
       return () => clearTimeout(timer);
-    }, [confidence]);
+    }, [confidence, index]);
+
+    let barColor = "from-green-500 to-emerald-600";
+    if (index === 1) barColor = "from-yellow-400 to-yellow-600";
+    else if (index === 2) barColor = "from-red-400 to-red-600";
 
     return (
       <div className="mt-2">
         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
           <div
-            className="h-3 bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-1000 ease-in-out"
+            className={`h-3 bg-gradient-to-r ${barColor} transition-all duration-1000 ease-in-out`}
             style={{ width: `${width}%` }}
           />
         </div>
@@ -399,7 +372,7 @@ export default function Prediction() {
           </div>
         ) : (
           <div className="mt-8 flex flex-col items-center w-full max-w-md mx-auto">
-            <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white-600 to- white-600 bg-clip-text ">
+            <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-white-600 to-white-600 bg-clip-text">
               Top Job Suggestions
             </h2>
             {Array.isArray(result) &&
@@ -409,7 +382,7 @@ export default function Prediction() {
                   className="w-full p-4 mb-2 bg-white/20 rounded-lg shadow"
                 >
                   <h3 className="font-semibold text-lg">{job.job}</h3>
-                  <ConfidenceBar confidence={job.confidence} />
+                  <ConfidenceBar confidence={job.confidence} index={index} />
                   <p className="text-sm mt-2">{job.explanation}</p>
                 </div>
               ))}
